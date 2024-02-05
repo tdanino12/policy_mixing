@@ -13,6 +13,9 @@ target_update_interval: 200
 lr: 0.0005
 c_lr: 0.0005
 
+wandb_project: "diversity5"
+wandb_group: "MMM2_qplex_mix_multi_with_1samples_mean_only_positive!_more_weights!"
+
 agent_output_type: "pi_logits"
 td_lambda: 0.8
 learner: "fop_learner"
