@@ -56,7 +56,7 @@ class FOP_Learner:
         mac_out = []
         mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            agent_outs = mac.forward(batch, t=t)
+            agent_outs, agent_outs_original, agent_outs_estimated, mean, var = mac.forward(batch, t=t)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
 
@@ -82,6 +82,12 @@ class FOP_Learner:
 
         policy_loss = (pol_target * mask).sum() / mask.sum()
 
+        reproduction_loss = th.nn.functional.binary_cross_entropy(agent_outs_estimated, agent_outs_original, reduction='sum')
+        KLD = - 0.5 * th.sum(1+ var - mean.pow(2) - var.exp())
+        vea_loss = reproduction_loss + KLD
+        vea_loss = (vea_loss * mask).sum() / mask.sum()
+        policy_loss+=vea_loss
+        
         # Optimise
         self.p_optimiser.zero_grad()
         policy_loss.backward()
@@ -122,7 +128,7 @@ class FOP_Learner:
         mac_out = []
         mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            agent_outs = mac.forward(batch, t=t)
+            agent_outs, agent_outs_original, agent_outs_estimated, mean, var = mac.forward(batch, t=t)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
 
