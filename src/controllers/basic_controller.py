@@ -59,7 +59,7 @@ class BasicMAC:
         self.agent_output_type = args.agent_output_type
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
-        self.policy_mixer = VAE(input_dim=args.n_agents)
+        self.policy_mixer = VAE(input_dim=args.n_agents*args.n_actions, prob_dim = args.n_agents)
         self.hidden_states = None
 
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
