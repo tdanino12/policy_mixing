@@ -76,7 +76,7 @@ class BasicMAC:
 
         # Softmax the agent outputs if they're policy logits
         if self.agent_output_type == "pi_logits":
-            cat_outputs = th.cat(agent_outs)
+            cat_outputs = th.stack(agent_outs,dim=-1)
             out_estimate, mean, var = self.policy_mixer(agent_outs)
             agent_outs = 0.9*agent_outs_temp+0.1*out_estimate
             
