@@ -1,6 +1,7 @@
 from modules.agents import REGISTRY as agent_REGISTRY
 from components.action_selectors import REGISTRY as action_REGISTRY
-import torch as the
+import torch as th
+
 class VAE(nn.Module):
 
     def __init__(self, input_dim=784, hidden_dim=400, latent_dim=200, device=device):
@@ -64,7 +65,7 @@ class BasicMAC:
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
         # Only select actions for the selected batch elements in bs
         avail_actions = ep_batch["avail_actions"][:, t_ep]
-        agent_outputs, _, _ = self.forward(ep_batch, t_ep, test_mode=test_mode)
+        agent_outputs, _, _, _, _ = self.forward(ep_batch, t_ep, test_mode=test_mode)
         chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
         return chosen_actions
 
@@ -75,7 +76,7 @@ class BasicMAC:
 
         # Softmax the agent outputs if they're policy logits
         if self.agent_output_type == "pi_logits":
-            out_estimate, _, _ = self.policy_mixer(agent_outs)
+            out_estimate, mean, var = self.policy_mixer(agent_outs)
             agent_outs = 0.9*agent_outs_temp+0.1*out_estimate
             
             if getattr(self.args, "mask_before_softmax", True):
@@ -101,7 +102,7 @@ class BasicMAC:
         agent_outs_temp = agent_outs_temp.view(ep_batch.batch_size, self.n_agents, -1)
         out_estimate = out_estimate.view(ep_batch.batch_size, self.n_agents, -1)
         
-        return agent_outs.view(ep_batch.batch_size, self.n_agents, -1), agent_outs_temp, out_estimate
+        return agent_outs.view(ep_batch.batch_size, self.n_agents, -1), agent_outs_temp, out_estimate, mean, var
 
     def init_hidden(self, batch_size):
         self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
