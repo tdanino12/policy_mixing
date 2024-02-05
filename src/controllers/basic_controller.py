@@ -5,7 +5,7 @@ import torch.nn as nn
 
 class VAE(nn.Module):
 
-    def __init__(self, input_dim=12, hidden_dim=200, latent_dim=100, prob_dim = 3, device=device):
+    def __init__(self, input_dim=12, hidden_dim=200, latent_dim=100, prob_dim = 3):
         super(VAE, self).__init__()
 
         # encoder
@@ -36,7 +36,7 @@ class VAE(nn.Module):
         return mean, logvar
 
     def reparameterization(self, mean, var):
-        epsilon = torch.randn_like(var).to(device)      
+        epsilon = torch.randn_like(var)  
         z = mean + var*epsilon
         return z
 
