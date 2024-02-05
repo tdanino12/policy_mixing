@@ -17,8 +17,8 @@ class VAE(nn.Module):
             )
         
         # latent mean and variance 
-        self.mean_layer = nn.Linear(prob_dim, 2)
-        self.logvar_layer = nn.Linear(prob_dim, 2)
+        self.mean_layer = nn.Linear(latent_dim, 2)
+        self.logvar_layer = nn.Linear(latent_dim, 2)
         
         # decoder
         self.decoder = nn.Sequential(
@@ -36,7 +36,7 @@ class VAE(nn.Module):
         return mean, logvar
 
     def reparameterization(self, mean, var):
-        epsilon = torch.randn_like(var)  
+        epsilon = th.randn_like(var)  
         z = mean + var*epsilon
         return z
 
@@ -77,7 +77,7 @@ class BasicMAC:
 
         # Softmax the agent outputs if they're policy logits
         if self.agent_output_type == "pi_logits":
-            cat_outputs = th.stack(agent_outs_temp,dim=-1)
+            cat_outputs = th.flatten(agent_outs_temp,start_dim=-2)
             out_estimate, mean, var = self.policy_mixer(cat_outputs)
             agent_outs = 0.9*agent_outs_temp+0.1*out_estimate
             
