@@ -14,7 +14,7 @@ from runners import REGISTRY as r_REGISTRY
 from controllers import REGISTRY as mac_REGISTRY
 from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
-
+import wandb
 def run(_run, _config, _log):
 
     # check args sanity
@@ -83,6 +83,14 @@ def run_sequential(args, logger):
     args.state_shape = env_info["state_shape"]
     args.unit_dim = 16#env_info["unit_dim"]
 
+    os.environ["WANDB_API_KEY"] = "495b87eba3dbc88f719508680483181c811852ba"
+    run = wandb.init(
+    project=args.wandb_project,
+    group=args.wandb_group,
+    name="seed if:{}".format(args.seed),
+    )
+    wandb.login(key = os.environ["WANDB_API_KEY"])
+    
     # Default/Base scheme
     scheme = {
         "state": {"vshape": env_info["state_shape"]},
