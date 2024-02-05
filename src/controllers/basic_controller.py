@@ -1,6 +1,51 @@
 from modules.agents import REGISTRY as agent_REGISTRY
 from components.action_selectors import REGISTRY as action_REGISTRY
-import torch as th
+import torch as the
+class VAE(nn.Module):
+
+    def __init__(self, input_dim=784, hidden_dim=400, latent_dim=200, device=device):
+        super(VAE, self).__init__()
+
+        # encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LeakyReLU(0.2),
+            nn.Linear(hidden_dim, latent_dim),
+            nn.LeakyReLU(0.2)
+            )
+        
+        # latent mean and variance 
+        self.mean_layer = nn.Linear(latent_dim, 2)
+        self.logvar_layer = nn.Linear(latent_dim, 2)
+        
+        # decoder
+        self.decoder = nn.Sequential(
+            nn.Linear(2, latent_dim),
+            nn.LeakyReLU(0.2),
+            nn.Linear(latent_dim, hidden_dim),
+            nn.LeakyReLU(0.2),
+            nn.Linear(hidden_dim, input_dim),
+            nn.Sigmoid()
+            )
+     
+    def encode(self, x):
+        x = self.encoder(x)
+        mean, logvar = self.mean_layer(x), self.logvar_layer(x)
+        return mean, logvar
+
+    def reparameterization(self, mean, var):
+        epsilon = torch.randn_like(var).to(device)      
+        z = mean + var*epsilon
+        return z
+
+    def decode(self, x):
+        return self.decoder(x)
+
+    def forward(self, x):
+        mean, logvar = self.encode(x)
+        z = self.reparameterization(mean, logvar)
+        x_hat = self.decode(z)
+        return x_hat, mean, log_var
 
 
 # This multi-agent controller shares parameters between agents
@@ -13,24 +58,26 @@ class BasicMAC:
         self.agent_output_type = args.agent_output_type
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
-
+        self.policy_mixer = VAE()
         self.hidden_states = None
 
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
         # Only select actions for the selected batch elements in bs
         avail_actions = ep_batch["avail_actions"][:, t_ep]
-        agent_outputs = self.forward(ep_batch, t_ep, test_mode=test_mode)
+        agent_outputs, _, _ = self.forward(ep_batch, t_ep, test_mode=test_mode)
         chosen_actions = self.action_selector.select_action(agent_outputs[bs], avail_actions[bs], t_env, test_mode=test_mode)
         return chosen_actions
 
     def forward(self, ep_batch, t, test_mode=False):
         agent_inputs = self._build_inputs(ep_batch, t)
         avail_actions = ep_batch["avail_actions"][:, t]
-        agent_outs, self.hidden_states = self.agent(agent_inputs, self.hidden_states)
+        agent_outs_temp, self.hidden_states = self.agent(agent_inputs, self.hidden_states)
 
         # Softmax the agent outputs if they're policy logits
         if self.agent_output_type == "pi_logits":
-
+            out_estimate, _, _ = self.policy_mixer(agent_outs)
+            agent_outs = 0.9*agent_outs_temp+0.1*out_estimate
+            
             if getattr(self.args, "mask_before_softmax", True):
                 # Make the logits for unavailable actions very negative to minimise their affect on the softmax
                 reshaped_avail_actions = avail_actions.reshape(ep_batch.batch_size * self.n_agents, -1)
@@ -50,8 +97,11 @@ class BasicMAC:
                 if getattr(self.args, "mask_before_softmax", True):
                     # Zero out the unavailable actions
                     agent_outs[reshaped_avail_actions == 0] = 0.0
- 
-        return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
+                    
+        agent_outs_temp = agent_outs_temp.view(ep_batch.batch_size, self.n_agents, -1)
+        out_estimate = out_estimate.view(ep_batch.batch_size, self.n_agents, -1)
+        
+        return agent_outs.view(ep_batch.batch_size, self.n_agents, -1), agent_outs_temp, out_estimate
 
     def init_hidden(self, batch_size):
         self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
