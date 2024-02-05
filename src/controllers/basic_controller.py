@@ -4,7 +4,7 @@ import torch as th
 
 class VAE(nn.Module):
 
-    def __init__(self, input_dim=784, hidden_dim=400, latent_dim=200, device=device):
+    def __init__(self, input_dim=12, hidden_dim=200, latent_dim=100, prob_dim = 3, device=device):
         super(VAE, self).__init__()
 
         # encoder
@@ -16,8 +16,8 @@ class VAE(nn.Module):
             )
         
         # latent mean and variance 
-        self.mean_layer = nn.Linear(latent_dim, 2)
-        self.logvar_layer = nn.Linear(latent_dim, 2)
+        self.mean_layer = nn.Linear(prob_dim, 2)
+        self.logvar_layer = nn.Linear(prob_dim, 2)
         
         # decoder
         self.decoder = nn.Sequential(
@@ -59,7 +59,7 @@ class BasicMAC:
         self.agent_output_type = args.agent_output_type
 
         self.action_selector = action_REGISTRY[args.action_selector](args)
-        self.policy_mixer = VAE()
+        self.policy_mixer = VAE(input_dim=args.n_agents)
         self.hidden_states = None
 
     def select_actions(self, ep_batch, t_ep, t_env, bs=slice(None), test_mode=False):
@@ -76,6 +76,7 @@ class BasicMAC:
 
         # Softmax the agent outputs if they're policy logits
         if self.agent_output_type == "pi_logits":
+            cat_outputs = th.cat(agent_outs)
             out_estimate, mean, var = self.policy_mixer(agent_outs)
             agent_outs = 0.9*agent_outs_temp+0.1*out_estimate
             
