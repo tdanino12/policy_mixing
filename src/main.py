@@ -10,8 +10,7 @@ import sys
 import torch as th
 from utils.logging import get_logger
 import yaml
-
-from run import run
+from gym.utils import seedingfrom run import run
 
 SETTINGS['CAPTURE_MODE'] = "fd" # set to "no" if you want to see stdout/stderr in console
 logger = get_logger()
